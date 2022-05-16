@@ -2,12 +2,12 @@
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { authStore } from '.'
-import { deskStore } from '@/desk'
+import { DeskStore } from '@/desk'
 import IconAvatar from '@/components/icons/IconAvatar.vue'
 import PropItem from '@/components/PropItem.vue'
 
 const { token, user } = storeToRefs(authStore())
-const { count } = storeToRefs(deskStore())
+const { count } = storeToRefs(DeskStore())
 
 const msg = computed(() =>
     token.value ? '　正在获取用户信息...' : '　正在初始化用户...'

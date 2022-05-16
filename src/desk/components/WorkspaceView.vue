@@ -1,8 +1,9 @@
 <script setup>
 import * as R from 'ramda'
-import { computed, ref, watchEffect } from 'vue'
+import { computed, ref, watch, watchEffect } from 'vue'
 import { NInputGroup, NInput, NButton, NIcon } from 'naive-ui'
-import { noteStore } from '@/note'
+import { NoteStore } from '@/note'
+import { SearchStore } from '@/search'
 import { createNote, openNode } from '@/note/note'
 import IconAdd from '@/components/icons/IconAdd.vue'
 import IconFind from '@/components/icons/IconFind.vue'
@@ -10,42 +11,48 @@ import IconNote from '@/components/icons/IconNote.vue'
 import GroupLister from '@/components/GroupLister.vue'
 import WinLister from '@/components/WinLister.vue'
 import NoteEditorView from '@/note/EditorView.vue'
+import SearchView from '@/search/SearchView.vue'
 
 const props = defineProps(['desk'])
 
 /* note */
-const noteList = ref(null)
-const noteFindById = ref(null)
-const noteListOpened = ref(null)
-const noteFocusId = ref(null)
-watchEffect(() => {
-    const { list, findById, listOpened, focusId } = noteStore(props.desk)
-    noteList.value = list
-    noteFindById.value = findById
-    noteListOpened.value = listOpened
-    noteFocusId.value = focusId
-})
-const noteFocusId_ = computed({
-    get() {
-        return noteFocusId.value
-    },
-    set(value) {
-        const { focus } = noteStore(props.desk)
-        focus(value)
-    },
-})
-const isNoteOpen = computed(() => !R.isEmpty(noteListOpened.value))
+const noteStore = computed(() => NoteStore(props.desk))
+const isNoteOpen = computed(() => !R.isEmpty(noteStore.value?.listOpened))
 const onNoteAdd = () => {
     const note = createNote(props.desk, '')
-    onNoteOpen(note)
-}
-const onNoteOpen = note => {
     openNode(props.desk, note)
+    onNoteOpen()
+}
+const onNoteOpen = () => searchStore.value.search()
+
+/* search */
+const searchStore = computed(() => SearchStore(props.desk)())
+const keyword = ref('')
+const searched = ref(false)
+watchEffect(() => {
+    keyword.value = searchStore.value.keyword
+    searched.value = searchStore.value.searched
+})
+// 快速检索本地信息：笔记、页面和媒体等
+const onFind = () => {
+    searchStore.value.setKeyword(keyword.value)
+
+    // todo 完成本地检索
+    console.log(222, '快速检索本地信息：笔记、页面和媒体等', keyword.value)
+}
+watch(keyword, onFind)
+// 搜索网络
+const onSearch = () => {
+    searchStore.value.search(keyword.value)
+
+    console.log(222, '搜索网络：google、bing和baidu等', keyword.value)
+}
+const onClear = () => {
+    console.log(222, '清空', keyword.value)
 }
 
 const openPages = ref({})
 const openMedias = ref({})
-
 const isPageOpen = computed(() => !R.isEmpty(openPages.value))
 const isMediaOpen = computed(() => !R.isEmpty(openMedias.value))
 </script>
@@ -54,11 +61,8 @@ const isMediaOpen = computed(() => !R.isEmpty(openMedias.value))
     <div class="workspace">
         <div class="content">
             <GroupLister
-                :owner="desk"
                 :icon="IconNote"
-                :list="noteList"
-                :findById="noteFindById"
-                :focusId="noteFocusId_"
+                :listStore="noteStore"
                 @open="onNoteOpen"></GroupLister>
             <div class="work">
                 <div class="actions">
@@ -77,12 +81,21 @@ const isMediaOpen = computed(() => !R.isEmpty(openMedias.value))
                     </div>
                     <NInputGroup class="serchbar">
                         <NInput
+                            v-model:value="keyword"
                             type="text"
                             size="small"
                             round
+                            clearable
+                            @keydown.enter="onSearch"
+                            :on-clear="onClear"
                             placeholder="搜索笔记、页面、媒体和互联网">
                         </NInput>
-                        <NButton type="primary" size="small" round ghost>
+                        <NButton
+                            type="primary"
+                            size="small"
+                            round
+                            ghost
+                            @click="onSearch">
                             <template #icon>
                                 <NIcon>
                                     <IconFind width="16" height="16"></IconFind>
@@ -90,22 +103,33 @@ const isMediaOpen = computed(() => !R.isEmpty(openMedias.value))
                             </template>
                         </NButton>
                     </NInputGroup>
-                    <div></div>
+                    <div>{{ keyword }}</div>
                 </div>
                 <div class="space">
-                    <div v-if="isNoteOpen || isPageOpen" class="notes-pages">
+                    <div
+                        v-if="searched || isNoteOpen || isPageOpen"
+                        class="notes-pages">
+                        <SearchView
+                            v-if="searched"
+                            :searchStore="searchStore"></SearchView>
                         <WinLister
-                            v-if="isNoteOpen"
+                            v-else-if="isNoteOpen"
                             :Component="NoteEditorView"
                             :data="{ desk }"
                             itemName="note"
-                            v-model:list="noteListOpened"
-                            v-model:focusId="noteFocusId_"></WinLister>
+                            :listStore="noteStore"></WinLister>
                         <div v-if="isPageOpen" class="pages">页面列表</div>
                     </div>
                     <div v-if="isMediaOpen" class="medias">媒体列表</div>
                     <div
-                        v-if="!(isNoteOpen || isPageOpen || isMediaOpen)"
+                        v-if="
+                            !(
+                                searched ||
+                                isNoteOpen ||
+                                isPageOpen ||
+                                isMediaOpen
+                            )
+                        "
                         class="tips">
                         <p>创建笔记</p>
                         <p>创建笔记</p>
@@ -113,17 +137,6 @@ const isMediaOpen = computed(() => !R.isEmpty(openMedias.value))
                     </div>
                 </div>
             </div>
-            <GroupLister
-                :owner="desk"
-                name="页面"
-                :itemIcon="IconNote"
-                :list="noteList"
-                :focusId="noteFocusId"
-                :findById="noteFindById"
-                @add="onNoteAdd"
-                @open="onNoteOpen">
-                <template #popover>haha</template>
-            </GroupLister>
         </div>
         <div class="media-list">媒体</div>
     </div>
@@ -142,17 +155,20 @@ const isMediaOpen = computed(() => !R.isEmpty(openMedias.value))
     display: flex;
     overflow: hidden;
 }
+
 .work {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
 }
+
 .actions {
     display: flex;
     justify-content: space-between;
     padding: 9px;
 }
+
 .action {
     padding: 5px;
     display: flex;
@@ -160,29 +176,35 @@ const isMediaOpen = computed(() => !R.isEmpty(openMedias.value))
     line-height: 1.2;
     cursor: pointer;
 }
+
 .serchbar {
     width: 50%;
     min-width: 300px;
 }
+
 .space {
     flex: 1;
     overflow: hidden;
     display: flex;
     flex-direction: column;
 }
+
 .notes-pages {
     flex: 1;
     display: flex;
     overflow: hidden;
 }
+
 .pages {
     flex: 1;
     overflow-y: auto;
 }
+
 .medias {
     flex: 1;
     overflow-y: auto;
 }
+
 .tips {
     flex: 1;
     display: flex;
@@ -190,6 +212,7 @@ const isMediaOpen = computed(() => !R.isEmpty(openMedias.value))
     justify-content: center;
     align-items: center;
 }
+
 .media-list {
 }
 </style>

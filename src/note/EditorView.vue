@@ -17,9 +17,6 @@ watchEffect(() => {
         })
 })
 
-// 组件卸载前保存
-onBeforeUnmount(() => onSave())
-
 // form binds
 const data = ref({
     text: null,
@@ -35,6 +32,14 @@ watchEffect(() => {
         preText = note.text
     }
 })
+
+// alt + s to save
+const onAlt = e => {
+    if (e.keyCode === 32) {
+        onSave()
+        e.preventDefault()
+    }
+}
 
 // 保存数据
 const onSave = () => {
@@ -71,6 +76,12 @@ const onSave = () => {
     })
     preText = text
 }
+
+// 自动保存
+// fixme 由于 Teleport 在 disabled 状态下无法卸载子组件的问题，导致卸载事件不执行
+//       在列表中仅存在一个 Teleport 时出现子组件不卸载的问题，多个 Teleport 时正常
+//       等待 vue 版本更新
+onBeforeUnmount(onSave)
 </script>
 
 <template>
@@ -82,6 +93,7 @@ const onSave = () => {
         type="textarea"
         size="small"
         @focusout="onSave"
+        @keydown.alt="onAlt"
         :autosize="{ minRows: 1 }"></NInput>
 </template>
 
@@ -89,5 +101,7 @@ const onSave = () => {
 .input {
     flex: 1;
     border-radius: 0;
+    font-size: larger;
+    padding: 9px;
 }
 </style>

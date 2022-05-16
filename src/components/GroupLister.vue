@@ -3,53 +3,47 @@
  * 分组列表组件
  **/
 import * as R from 'ramda'
-import { ref, watch, watchEffect, computed } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { NPopover, useThemeVars } from 'naive-ui'
 import { format } from 'date-fns'
-import { dateFormNow, dayFormNow } from '@/common/app'
+import { dateFormNow, dayFormNow } from '@/common/util'
 import IconArrowRight from '@/components/icons/IconArrowRight.vue'
 
 const themeVars = useThemeVars()
 
 /**
- * owner        => 本列表的所有者，用于清除分组折叠状态
  * icon         => 数据项业图标，用于显示在列表项上
- * list         => 需要显示的数据列表
- * findById     => 获取数据项的完整数据
- * focusId      => 当前焦点关联数据项 id
+ * listStore    => 关联的数据列表商店
  **/
-const props = defineProps(['owner', 'icon', 'list', 'findById', 'focusId'])
+const props = defineProps(['icon', 'listStore'])
 
-/**
- * open         => 打开某个数据项，参数：item
- **/
 const emit = defineEmits(['open'])
+const open = item => emit('open', item)
 
-const focused = item => item.id === props.focusId
-const onEnter = item => item.temp && props.findById(item.id)
-const onOpen = item => emit('open', item)
-
-const groupList = ref(null)
-const groupState = ref({})
-watchEffect(() => {
+const groupList = computed(() =>
     // 按照 group 属性获取分组
-    groupList.value = R.groupBy(R.propOr('未分组', 'group'), props.list)
-    groupState.value = {
-        // 默认全部展开
-        ...R.map(() => true, groupList.value),
-        // 恢复当前折叠状态，因为 list 属性会在数据项新建、删除和编辑时多次更新
-        ...groupState.value,
-    }
-})
+    R.groupBy(R.propOr('未分组', 'group'), props.listStore.list)
+)
+const groupState = ref({}) // 默认全部展开
 watch(
-    () => props.owner, // 切换所有者时
+    () => props.listStore, // 切换列表数据商店时
     () => (groupState.value = {}) // 清空分组状态
 )
 const isEmpty = computed(() => R.isEmpty(groupList.value))
 const groups = computed(() => R.keys(groupList.value))
-const isGroupOpened = group => groupState.value[group]
-const toggleGroupOpened = group =>
-    (groupState.value[group] = !groupState.value[group])
+const isFold = group => group in groupState.value
+const toggleFold = group =>
+    isFold(group)
+        ? delete groupState.value[group] // 展开
+        : (groupState.value[group] = undefined) // 折叠
+
+// 函数执行时，每次获取 props.listStore 中的最新值
+const focused = item => item.id === props.listStore.focusId
+const onEnter = item => item.temp && props.listStore.findById(item.id)
+const onOpen = item => {
+    props.listStore.open(item)
+    open(item)
+}
 
 const title = item => {
     const { name, ct } = item
@@ -69,21 +63,21 @@ const subtitle = item => {
 <template>
     <div class="list" v-if="!isEmpty">
         <div v-for="group in groups" :key="group">
-            <div class="group" @click="toggleGroupOpened(group)">
+            <div class="group" @click="toggleFold(group)">
                 <p class="group-text">{{ group }}</p>
                 <IconArrowRight
                     class="group-arrow"
-                    :class="{ 'group-arrow-opened': isGroupOpened(group) }"
+                    :class="{ 'group-arrow-expand': !isFold(group) }"
                     width="12"
                     height="12"></IconArrowRight>
             </div>
-            <template v-if="isGroupOpened(group)">
+            <template v-if="!isFold(group)">
                 <NPopover
                     v-for="item in groupList[group]"
                     :key="item.id"
                     :delay="300"
                     style="min-width: 200px; max-width: 600px"
-                    placement="right-start"
+                    placement="right"
                     trigger="hover">
                     <template #trigger>
                         <div
@@ -103,9 +97,20 @@ const subtitle = item => {
                         </div>
                     </template>
                     <slot name="popover">
-                        <p style="white-space: pre-wrap; word-break: break-all">
+                        <div
+                            style="
+                                display: -webkit-box;
+                                -webkit-line-clamp: 9;
+                                -webkit-box-orient: vertical;
+                                white-space: pre-wrap;
+                                word-wrap: break-word;
+                                word-break: break-all;
+                                overflow: hidden;
+                                text-overflow: 'haah';
+                                max-height: 590px;
+                            ">
                             {{ item.text }}
-                        </p>
+                        </div>
                     </slot>
                 </NPopover>
             </template>
@@ -115,7 +120,7 @@ const subtitle = item => {
 
 <style scoped>
 .list {
-    width: 90px;
+    width: 105px;
     border-right: 1px rgba(191, 191, 191, 0.28) solid;
     overflow-y: auto;
 }
@@ -129,18 +134,20 @@ const subtitle = item => {
 }
 .group-text {
     white-space: pre;
+    word-wrap: break-word;
+    word-break: break-all;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .group-arrow {
     flex-shrink: 0;
 }
-.group-arrow-opened {
+.group-arrow-expand {
     transform: rotate(90deg);
 }
 .item {
-    margin: 5px 0;
-    padding: 5px;
+    margin-top: 1px;
+    padding: 9px 5px;
     display: flex;
     font-size: 12px;
     line-height: 1.2;
@@ -161,6 +168,8 @@ const subtitle = item => {
 }
 .title {
     white-space: nowrap;
+    word-wrap: break-word;
+    word-break: break-all;
     overflow: hidden;
     text-overflow: ellipsis;
 }

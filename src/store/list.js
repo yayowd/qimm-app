@@ -1,6 +1,7 @@
 import * as R from 'ramda'
 import { defineStore } from 'pinia'
 import { stList } from './storage'
+import { nextTick } from 'vue'
 
 /**
  * 创建数据商店： 列表商店
@@ -18,14 +19,14 @@ export const listStore = id => {
     return defineStore({
         id,
         state: () => ({
-            // 初始只是简单列表，避免启动一次性加载全部数据
-            // 使用 findById 加载完整数据
-            datas: R.reduce((ds, d) => {
-                ds[d.id] = d
-                return ds
-            }, {})(stData.list),
+            // 列表数据 使用 data.id 为 key 使用 data 为 value
+            // 初始只是简单列表，避免启动时一次性加载全部数据
+            //   使用 findById 加载完整数据
+            datas: stData.list || {},
+            // 已打开列表 使用 data.id 为 key 使用 ot 为 value
+            opened: stData.opened || {},
             // 激活项 id
-            focusId: null,
+            focusId: stData.focusId,
         }),
         getters: {
             count: state => R.compose(R.length, R.keys)(state.datas),
@@ -44,10 +45,10 @@ export const listStore = id => {
             listOpened: state =>
                 // 默认排序：ot打开时间倒序
                 R.compose(
-                    R.sort((a, b) => b.ot - a.ot),
-                    R.filter(R.has('ot')),
-                    R.values
-                )(state.datas),
+                    R.map(id => state.datas[id]),
+                    R.sort((a, b) => state.opened[b] - state.opened[a]),
+                    R.keys
+                )(state.opened),
             // 下一个，如果后面没有就取前面的
             next() {
                 return data => {
@@ -84,29 +85,24 @@ export const listStore = id => {
              **/
             // 生成简单列表用于保存
             listToSave: state =>
-                R.compose(
-                    R.map(({ id, group, name, ct, ot }) => ({
-                        id,
-                        group,
-                        name,
-                        ct,
-                        ot,
-                        temp: true, // 标志使用时需要再次完整加载
-                    })),
-                    R.values
-                )(state.datas),
+                R.map(({ id, group, name, ct }) => ({
+                    id,
+                    group,
+                    name,
+                    ct,
+                    temp: true, // 标志使用时需要再次完整加载
+                }))(state.datas),
         },
         actions: {
-            save(data, listUpdated, onSave) {
+            save(data, onSave) {
                 // 保存时先执行自定义操作
                 if (onSave instanceof Function) onSave(data)
 
                 // 同步数据到数据商店
                 this.datas[data.id] = data
 
-                // 根据需要更新列表
-                listUpdated && (stData.list = this.listToSave)
-
+                // 更新列表
+                stData.list = this.listToSave
                 // 保存数据
                 stData.save(data)
             },
@@ -115,7 +111,7 @@ export const listStore = id => {
                 if (R.has(data.id, this.datas))
                     throw new Error(`the data(id:${data.id}) already exist`)
 
-                this.save(data, true, onSave)
+                this.save(data, onSave)
             },
             modify(data, onSave) {
                 // 编辑时，检查ID是否存在
@@ -125,7 +121,7 @@ export const listStore = id => {
                 // 将新数据合并到原数据中
                 data = R.mergeDeepRight(this.datas[data.id], data)
 
-                this.save(data, false, onSave)
+                this.save(data, onSave)
             },
             remove(data) {
                 delete this.datas[data.id]
@@ -134,22 +130,40 @@ export const listStore = id => {
                 stData.list = this.listToSave
                 // 删除数据
                 stData.remove(data)
+
+                this.close(data)
             },
             open(data) {
                 // 没打开的话，先打开
-                if (!data.ot) {
-                    data.ot = Date.now() // 打开时间
-                    this.save(data, false)
+                if (!this.opened[data.id]) {
+                    this.opened[data.id] = Date.now() // 打开时间
+                    stData.opened = this.opened
                 }
-
                 // 激活
-                this.focus(data.id)
+                this.blur()
+                nextTick(() => this.focus(data.id))
+            },
+            close(data) {
+                // 已经打开的话，先关闭
+                if (this.opened[data.id]) {
+                    delete this.opened[data.id]
+                    stData.opened = this.opened
+                }
+                // 失活
+                this.blur() // 注意区别 WinView 的 focusout
             },
             focus(id) {
-                if (this.focusId !== id) {
+                // 由于刷新页面时，总是触发当前激活组件的失活事件
+                //   导致页面重新加载时总是获取空的焦点项
+                //   所以不储存空的焦点项，会出现重新加载页面时仍然激活上一次主动失活的焦点项
+                if (id && this.focusId !== id) {
                     this.focusId = id
-                    stData.focusId = this.focusId
+                    stData.focusId = id
                 }
+            },
+            blur() {
+                // 强制清除当前焦点项
+                this.focus(-1)
             },
         },
     })

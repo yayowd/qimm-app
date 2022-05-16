@@ -1,7 +1,7 @@
 <script setup>
 import { NModal, NForm, NFormItem, NInput } from 'naive-ui'
 import { ref, watchEffect, computed } from 'vue'
-import { deskStore } from '.'
+import { DeskStore } from '.'
 import { saveDesk } from './desk'
 import { onFocusinSelAll } from '@/common/util'
 import TipItem from '@/components/TipItem.vue'
@@ -27,7 +27,7 @@ const checkName = (_, value) => {
     const { desk } = props
     if (desk && desk.name === name) return true
 
-    const { exsitName } = deskStore()
+    const { exsitName } = DeskStore()
     if (exsitName(name)) return new Error('名称重复')
 
     return true

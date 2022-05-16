@@ -10,4 +10,4 @@ export const deskRoutes = [
     },
 ]
 
-export const deskStore = listStore('desk')
+export const DeskStore = listStore('desk')

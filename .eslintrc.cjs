@@ -16,5 +16,6 @@ module.exports = {
     env: {
         'vue/setup-compiler-macros': true,
         es2022: true,
+        node: true,
     },
 }

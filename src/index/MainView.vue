@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { NButton, useMessage, useNotification, useThemeVars } from 'naive-ui'
-import { deskStore } from '@/desk'
+import { DeskStore } from '@/desk'
 import EditorView from '@/desk/EditorView.vue'
 import IconHome from '@/components/icons/IconHome.vue'
 import IconAdd from '@/components/icons/IconAdd.vue'
@@ -16,7 +16,7 @@ window.$notify = useNotification()
 const themeVars = useThemeVars()
 
 // deskes list and adder
-const { list } = storeToRefs(deskStore())
+const { list } = storeToRefs(DeskStore())
 const showEditor = ref(false)
 const onDeskAdd = () => {
     showEditor.value = true
@@ -110,8 +110,9 @@ onMounted(async () => {
     min-width: 69px;
 }
 .router-desk-name {
-    word-break: keep-all;
     white-space: nowrap;
+    word-wrap: break-word;
+    word-break: break-all;
     overflow: hidden;
     text-overflow: ellipsis;
     padding: 0 9px;

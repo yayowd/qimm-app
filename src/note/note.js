@@ -1,19 +1,18 @@
-import { dataBase, dataState } from '@/common/app'
-import { noteStore } from '.'
+import { dataBase } from '@/common/app'
+import { NoteStore } from '.'
 
 /**
  * note data
  **/
 const noteData = text => ({
     ...dataBase(),
-    ...dataState(),
     text,
 })
 
 export const createNote = (desk, text, onSave) => {
     const note = noteData(text)
 
-    const { add } = noteStore(desk)
+    const { add } = NoteStore(desk)
     add(note, onSave)
     return note
 }
@@ -21,7 +20,7 @@ export const createNote = (desk, text, onSave) => {
 export const editNote = (desk, note, onSave) => {
     note.mt = Date.now()
 
-    const { modify } = noteStore(desk)
+    const { modify } = NoteStore(desk)
     modify(note, onSave)
     return note
 }
@@ -34,11 +33,11 @@ export const saveNote = (desk, note, onSave) => {
 }
 
 export const deleteNote = (desk, note) => {
-    const { remove } = noteStore(desk)
+    const { remove } = NoteStore(desk)
     remove(note)
 }
 
 export const openNode = (desk, note) => {
-    const { open } = noteStore(desk)
+    const { open } = NoteStore(desk)
     open(note)
 }

@@ -2,22 +2,22 @@
 import { ref, watchEffect } from 'vue'
 import { useThemeVars, NButton, NIcon } from 'naive-ui'
 import { useRouter } from 'vue-router'
-import { deskStore } from '.'
+import { DeskStore } from '.'
 import { deleteDesk } from './desk'
 import HeaderView from './components/HeaderView.vue'
 import WorkspaceView from './components/WorkspaceView.vue'
 import IconDelete from '@/components/icons/IconDelete.vue'
 
 const props = defineProps(['id'])
+
 const themeVars = useThemeVars()
 const router = useRouter()
 
 const desk = ref(null)
-
 watchEffect(() => {
     try {
         const { id } = props
-        const { findById } = deskStore()
+        const { findById } = DeskStore()
         desk.value = findById(id)
     } catch (e) {
         desk.value = null
@@ -25,9 +25,7 @@ watchEffect(() => {
     }
 })
 
-const onDeskDelete = () => {
-    deleteDesk(props, router)
-}
+const onDeskDelete = () => deleteDesk(props, router)
 </script>
 
 <template>

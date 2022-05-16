@@ -1,19 +1,18 @@
-import { dataBase, dataState } from '@/common/app'
-import { deskStore } from '.'
+import { dataBase } from '@/common/app'
+import { DeskStore } from '.'
 
 /**
  * desk data
  **/
 const deskData = (name, goal) => ({
     ...dataBase(name),
-    ...dataState(),
     goal,
 })
 
 const createDesk = (name, goal) => {
     const desk = deskData(name, goal)
 
-    const { add } = deskStore()
+    const { add } = DeskStore()
     add(desk)
     return desk
 }
@@ -21,7 +20,7 @@ const createDesk = (name, goal) => {
 const editDesk = desk => {
     desk.mt = Date.now()
 
-    const { modify } = deskStore()
+    const { modify } = DeskStore()
     modify(desk)
     return desk
 }
@@ -34,8 +33,10 @@ export const saveDesk = desk => {
 }
 
 export const deleteDesk = (desk, router) => {
-    const { next, remove } = deskStore()
+    const { next, remove } = DeskStore()
     const nextDesk = next(desk)
+
+    // todo 需要清理桌子上的所有内容
 
     remove(desk)
 

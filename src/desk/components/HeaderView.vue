@@ -17,9 +17,7 @@ const showEditor = ref(false)
 const onDeskEdit = () => {
     showEditor.value = true
 }
-const onDeskDelete = () => {
-    deleteDesk(props.desk, router)
-}
+const onDeskDelete = () => deleteDesk(props.desk, router)
 </script>
 <template>
     <div class="header">
